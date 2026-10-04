@@ -1,0 +1,105 @@
+import pygame
+
+pygame.init()
+W, H = 400, 500
+screen = pygame.display.set_mode((W, H))
+clock = pygame.time.Clock()
+
+# Paddle
+paddle_w, paddle_h = 80, 12
+paddle_x = W // 2 - paddle_w // 2
+paddle_y = H - 40
+
+# Ball
+ball_x, ball_y = W // 2, H // 2
+ball_vx, ball_vy = 6, -5
+ball_r = 8
+
+# AI paddle (top)
+ai_x = W // 2 - paddle_w // 2
+ai_y = 25
+
+score_player = 0
+score_ai = 0
+game_active = True
+
+def reset_ball():
+    global ball_x, ball_y, ball_vx, ball_vy
+    ball_x, ball_y = W // 2, H // 2
+    ball_vx = 6 if ball_vx > 0 else -6
+    ball_vy = -5
+
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        elif event.type == pygame.MOUSEMOTION:
+            paddle_x = max(0, min(W - paddle_w, event.pos[0] - paddle_w // 2))
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            paddle_x = max(0, min(W - paddle_w, event.pos[0] - paddle_w // 2))
+
+    if game_active:
+        # Move ball
+        ball_x += ball_vx
+        ball_y += ball_vy
+
+        # Wall bounce (left/right)
+        if ball_x - ball_r <= 0 or ball_x + ball_r >= W:
+            ball_vx = -ball_vx
+
+        # Player paddle collision
+        if (ball_vy > 0 and ball_y + ball_r >= paddle_y and
+            paddle_x <= ball_x <= paddle_x + paddle_w):
+            ball_vy = -abs(ball_vy)
+            # Adjust angle based on hit position
+            offset = (ball_x - (paddle_x + paddle_w / 2)) / (paddle_w / 2)
+            ball_vx = int(offset * 5)
+            if ball_vx == 0: ball_vx = 1
+
+        # AI paddle collision
+        if (ball_vy < 0 and ball_y - ball_r <= ai_y + paddle_h and
+            ai_x <= ball_x <= ai_x + paddle_w):
+            ball_vy = abs(ball_vy)
+
+        # AI movement
+        ai_center = ai_x + paddle_w // 2
+        if ball_vy < 0:  # Ball coming toward AI
+            if ai_center < ball_x - 10:
+                ai_x += 3
+            elif ai_center > ball_x + 10:
+                ai_x -= 3
+        ai_x = max(0, min(W - paddle_w, ai_x))
+
+        # Scoring
+        if ball_y - ball_r <= 0:
+            score_player += 1
+            reset_ball()
+        elif ball_y + ball_r >= H:
+            score_ai += 1
+            reset_ball()
+
+    # Draw
+    screen.fill((15, 15, 30))
+    # Center line
+    for i in range(0, W, 20):
+        pygame.draw.rect(screen, (50, 50, 70), (i, H // 2 - 1, 10, 2))
+
+    # Paddles
+    pygame.draw.rect(screen, (100, 200, 255), (int(paddle_x), paddle_y, paddle_w, paddle_h), border_radius=6)
+    pygame.draw.rect(screen, (255, 100, 100), (int(ai_x), ai_y, paddle_w, paddle_h), border_radius=6)
+
+    # Ball
+    pygame.draw.circle(screen, (255, 255, 255), (int(ball_x), int(ball_y)), ball_r)
+
+    # Score
+    font = pygame.font.Font(None, 36)
+    p_text = font.render(str(score_player), True, (100, 200, 255))
+    a_text = font.render(str(score_ai), True, (255, 100, 100))
+    screen.blit(p_text, (W // 2 + 30, H // 2 - 20))
+    screen.blit(a_text, (W // 2 - 50, H // 2 - 20))
+
+    pygame.display.flip()
+    clock.tick(15)
+
+pygame.quit()
